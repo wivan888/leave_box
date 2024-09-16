@@ -79,15 +79,37 @@
             border-color: var(--btn-secondary-dark);
         }
 
+        .badge {
+            transition: all 0.3s ease;
+        }
+
+        .badge:hover {
+            transform: scale(1.1);
+        }
+
+        .dark-mode .badge.bg-primary {
+            background-color: #3498db !important;
+        }
+
+        .dark-mode .badge.bg-success {
+            background-color: #2ecc71 !important;
+        }
+
+        .dark-mode .badge.bg-danger {
+            background-color: #e74c3c !important;
+        }
+
         .list-group-item {
             background-color: transparent;
             border-color: rgba(0,0,0,0.125);
             transition: all 0.3s ease;
             opacity: 0;
+            color: var(--text-color-light);
         }
 
         .dark-mode .list-group-item {
             border-color: rgba(255,255,255,0.125);
+            color: var(--text-color-dark);
         }
 
         .list-group-item.show {
@@ -116,39 +138,12 @@
             color: var(--btn-primary-dark);
         }
 
-        .badge {
-            transition: all 0.3s ease;
+        .leave-info {
+            color: var(--text-color-light);
         }
 
-        .badge:hover {
-            transform: scale(1.1);
-        }
-
-        .dark-mode .badge.bg-primary {
-            background-color: #3498db !important;
-        }
-
-        .dark-mode .badge.bg-success {
-            background-color: #2ecc71 !important;
-        }
-
-        .dark-mode .badge.bg-danger {
-            background-color: #e74c3c !important;
-        }
-
-        .list-group-item:nth-child(1) { animation-delay: 0.1s; }
-        .list-group-item:nth-child(2) { animation-delay: 0.2s; }
-        .list-group-item:nth-child(3) { animation-delay: 0.3s; }
-        .list-group-item:nth-child(4) { animation-delay: 0.4s; }
-        .list-group-item:nth-child(5) { animation-delay: 0.5s; }
-
-        .dark-mode .table {
-            background-color: #314050; /* 深色模式下的表格背景色 */
-            color: #ffffff; /* 深色模式下的文字顏色 */
-        }
-
-        .dark-mode .table-hover > tbody > tr:hover {
-            background-color: #4a69bd; /* 懸停時的顏色 */
+        .dark-mode .leave-info {
+            color: var(--text-color-dark);
         }
     </style>
 </head>
@@ -175,24 +170,21 @@
                 <ul class="list-group mt-3">
                 {% for request in leave_requests %}
                     <li class="list-group-item d-flex justify-content-between align-items-center animate__animated animate__fadeInLeft">
-                        <div>
+                        <div class="leave-info">
                             申請 {{ request.leave_type }}，
                             從 {{ request.start_date }} 到 {{ request.end_date }}，
                             原因：{{ request.reason }}
                             <br>
                             狀態：<span class="badge bg-{{ 'primary' if request.status == '待審核' else 'success' if request.status == '已同意' else 'danger' }}">{{ request.status }}</span>
                         </div>
-                        <form method="POST" action="{{ url_for('delete_leave', request_id=loop.index0) }}">
-                            <button type="submit" class="btn btn-danger btn-sm">刪除</button>
-                        </form>
+                        <button onclick="deleteLeave('{{ loop.index0 }}')" class="btn btn-danger btn-sm">刪除</button>
                     </li>
                 {% endfor %}
                 </ul>
             </div>
         </div>
-        
-        <!-- 在適當的位置添加以下連結 -->
     </div>
+
     <script>
         const darkModeToggle = document.getElementById('darkModeToggle');
         const body = document.body;
@@ -231,6 +223,18 @@
                 }, index * 100);
             });
         });
+
+        function deleteLeave(requestId) {
+            fetch(`/delete_leave/${requestId}`, {
+                method: 'POST',
+            }).then(response => {
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('刪除失敗，請稍後再試。');
+                }
+            });
+        }
     </script>
 </body>
 </html>

@@ -158,9 +158,6 @@
                                 原因：{{ request.reason }}
                                 <br>
                                 狀態：<span class="badge bg-{{ 'primary' if request.status == '待審核' else 'success' if request.status == '已同意' else 'danger' }}">{{ request.status }}</span>
-                                {% if request.start_date > current_date %}
-                                    <button class="btn btn-sm btn-danger delete-request" data-id="{{ request.id }}">刪除</button>
-                                {% endif %}
                             </div>
                         </li>
                     {% endfor %}

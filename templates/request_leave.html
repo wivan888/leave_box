@@ -197,6 +197,7 @@
                         <option value="工傷病假">工傷病假</option>
                     </select>
                     <input type="text" id="date-picker" class="form-control" readonly>
+                    <input type="file" id="file-input" class="form-control" accept="image/*" style="display: none;">
                     <input type="text" id="user-input" class="form-control" placeholder="在這裡輸入...">
                     <button class="btn btn-primary" onclick="sendMessage()">發送</button>
                 </div>
@@ -226,11 +227,11 @@
                 case 0:
                     addMessage("請選擇您要請的假別：", true);
                     $('#leave-type-select').show();
-                    $('#user-input, #date-picker').hide();
+                    $('#user-input, #date-picker, #file-input').hide();
                     break;
                 case 1:
                     addMessage("請選擇開始日期", true);
-                    $('#leave-type-select, #user-input').hide();
+                    $('#leave-type-select, #user-input, #file-input').hide();
                     $('#date-picker').show().datepicker('show');
                     break;
                 case 2:
@@ -238,8 +239,8 @@
                     $('#date-picker').datepicker('show');
                     break;
                 case 3:
-                    addMessage("請輸入請假事由", true);
-                    $('#date-picker').hide();
+                    addMessage("請輸入請假事由：", true);
+                    $('#date-picker, #file-input').hide();
                     $('#user-input').show();
                     break;
             }
@@ -286,14 +287,17 @@
                         return;
                     }
                 }
-            } else {
-                userInput = $('#user-input').val();
-                if (userInput.trim() === '') return;
+            } else if (currentStep === 3) {
+                userInput = $('#user-input').val().trim();
+                if (!userInput) {
+                    addMessage("請輸入請假事由", true);
+                    return;
+                }
             }
 
             addMessage(userInput);
             leaveData[steps[currentStep]] = userInput;
-            $('#user-input, #date-picker').val('');
+            $('#user-input, #date-picker, #file-input').val('');
 
             currentStep++;
             if (currentStep < steps.length) {
@@ -304,11 +308,20 @@
         }
 
         function submitLeaveRequest() {
+            const formData = new FormData();
+            for (const [key, value] of Object.entries(leaveData)) {
+                formData.append(key, value);
+            }
+            if ($('#file-input')[0].files.length > 0) {
+                formData.append('file', $('#file-input')[0].files[0]);
+            }
+
             $.ajax({
                 url: '/submit_leave',
                 type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(leaveData),
+                data: formData,
+                processData: false,
+                contentType: false,
                 success: function(response) {
                     addMessage(response.message, true);
                     if (response.success) {
@@ -370,6 +383,12 @@
                 startDate: new Date()  // 設置最小日期為今天
             }).on('changeDate', function(e) {
                 if (e.date) {  // 確保日期已被選擇
+                    sendMessage();
+                }
+            });
+
+            $('#file-input').change(function() {
+                if (this.files.length > 0) {
                     sendMessage();
                 }
             });

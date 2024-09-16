@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, date
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # 用於session加密，請更改為隨機字符串
 
-# 模擬用戶數據庫
+# 1. 模擬用戶數據庫
 users = {
     "ivan": {
         "password": "0plmzaq12", 
@@ -26,7 +26,7 @@ users = {
             "事假": 14
         }
     },
-    "sara": {  # 新增 sara 用戶
+    "sara": {
         "password": "0plmzaq12",
         "role": "employee",
         "leave_days": {
@@ -38,9 +38,10 @@ users = {
     }
 }
 
-# 模擬請假記錄
+# 2. 模擬請假記錄
 leave_requests = []
 
+# 3. 登入功能
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -53,6 +54,7 @@ def login():
         return render_template('login.html', error="用戶名或密碼錯誤")
     return render_template('login.html')
 
+# 4. 儀表板功能
 @app.route('/dashboard')
 def dashboard():
     if 'username' not in session:
@@ -64,6 +66,7 @@ def dashboard():
         user_leave_requests = [req for req in leave_requests if req['employee'] == session['username']]
         return render_template('employee_dashboard.html', leave_requests=user_leave_requests, leave_days=users[session['username']]['leave_days'])
 
+# 5. 請假申請功能
 @app.route('/request_leave', methods=['GET', 'POST'])
 def request_leave():
     if 'username' not in session:
@@ -72,64 +75,41 @@ def request_leave():
 
 @app.route('/submit_leave', methods=['POST'])
 def submit_leave():
-    if 'username' not in session:
-        return jsonify({"success": False, "message": "請先登入"})
+    leave_type = request.form.get('leave_type')
+    start_date = request.form.get('start_date')
+    end_date = request.form.get('end_date')
+    reason = request.form.get('reason')
     
-    data = request.json
-    start_date = datetime.strptime(data['start_date'], '%Y-%m-%d')
-    end_date = datetime.strptime(data['end_date'], '%Y-%m-%d')
-    leave_days = (end_date - start_date).days + 1
-    leave_type = data['leave_type']
+    # 計算請假天數
+    start = datetime.strptime(start_date, '%Y-%m-%d')
+    end = datetime.strptime(end_date, '%Y-%m-%d')
+    days = (end - start).days + 1
 
-    user = users[session['username']]
-    
-    # 檢查是否有重疊的請假日期
-    for existing_request in leave_requests:
-        if existing_request['employee'] == session['username']:
-            existing_start = datetime.strptime(existing_request['start_date'], '%Y-%m-%d')
-            existing_end = datetime.strptime(existing_request['end_date'], '%Y-%m-%d')
-            if (start_date <= existing_end and end_date >= existing_start):
-                return jsonify({"success": False, "message": "您在這個時間段內已經有請假記錄，請重新填寫假。"})
-
-    if leave_type == "婚假" and leave_days > 8:
-        return jsonify({"success": False, "message": "婚假一次最多只能請8天"})
-    elif leave_type == "喪假" and leave_days > 6:
-        return jsonify({"success": False, "message": "喪假一次最多只能請6天"})
-    elif leave_type in user['leave_days']:
-        if leave_days > user['leave_days'][leave_type]:
-            return jsonify({"success": False, "message": f"您的{leave_type}剩餘天數不足，目前剩餘 {user['leave_days'][leave_type]} 天"})
-    
-    if leave_type == "普通傷病假(非住院)" or leave_type == "普通傷病假(住院)":
-        total_sick_leave = sum(req['days'] for req in leave_requests 
-                                if req['employee'] == session['username'] 
-                                and req['leave_type'] in ["普通傷病假(非住院)", "普通傷病假(住院)"]
-                                and (datetime.now() - datetime.strptime(req['start_date'], '%Y-%m-%d')).days <= 730)
-        if total_sick_leave + leave_days > 365:
-            return jsonify({"success": False, "message": "普通傷病假(非住院)與普通傷病假(住院)二年內合計不可超過一年"})
-
-    leave_request = {
-        "employee": session['username'],
-        "leave_type": leave_type,
-        "start_date": data['start_date'],
-        "end_date": data['end_date'],
-        "reason": data['reason'],
-        "status": "待審核",
-        "days": leave_days
-    }
-    leave_requests.append(leave_request)
-    
-    if leave_type in user['leave_days']:
-        user['leave_days'][leave_type] -= leave_days
-        return jsonify({
-            "success": True, 
-            "message": f"請假申請已提交，剩餘{leave_type}天數：{user['leave_days'][leave_type]} 天"
-        })
+    # 更新用戶的剩餘請假天數
+    username = session['username']
+    if leave_type in users[username]['leave_days']:
+        if users[username]['leave_days'][leave_type] >= days:
+            users[username]['leave_days'][leave_type] -= days
+            
+            # 添加新的請假記錄
+            leave_request = {
+                "employee": username,
+                "leave_type": leave_type,
+                "start_date": start_date,
+                "end_date": end_date,
+                "days": days,
+                "reason": reason,
+                "status": "待審核"
+            }
+            leave_requests.append(leave_request)
+            
+            return jsonify({'success': True, 'message': f'請假申請已提交，剩餘{leave_type}天數：{users[username]["leave_days"][leave_type]}天'})
+        else:
+            return jsonify({'success': False, 'message': f'剩餘{leave_type}天數不足，無法申請'})
     else:
-        return jsonify({
-            "success": True, 
-            "message": "請假申請已提交"
-        })
+        return jsonify({'success': False, 'message': f'無效的請假類型'})
 
+# 6. 請假審核功能
 @app.route('/review_leave/<int:request_id>', methods=['POST'])
 def review_leave(request_id):
     if 'username' not in session or session['role'] != 'manager':
@@ -145,17 +125,23 @@ def review_leave(request_id):
                 users[employee]['leave_days'][leave_type] += days
     return redirect(url_for('dashboard'))
 
+# 7. 刪除請假記錄功能
 @app.route('/delete_leave/<int:request_id>', methods=['POST'])
 def delete_leave(request_id):
     if 'username' not in session:
-        return jsonify({"success": False, "message": "請先登入"})
-    if 0 <= request_id < len(leave_requests) and leave_requests[request_id]['employee'] == session['username']:
-        leave_type = leave_requests[request_id]['leave_type']
-        if leave_requests[request_id]['status'] != '已拒絕' and leave_type in users[session['username']]['leave_days']:
-            users[session['username']]['leave_days'][leave_type] += leave_requests[request_id]['days']
-        leave_requests.pop(request_id)
-        return jsonify({"success": True, "message": "請假記錄已成功刪除"})
-    return jsonify({"success": False, "message": "無法刪除請假記錄"})
+        return jsonify({'error': '未登錄'}), 401
+
+    username = session['username']
+    user_leave_requests = [req for req in leave_requests if req['employee'] == username]
+
+    if 0 <= request_id < len(user_leave_requests):
+        leave_request = user_leave_requests[request_id]
+        leave_requests.remove(leave_request)
+        if leave_request['status'] == '已同意':
+            users[username]['leave_days'][leave_request['leave_type']] += leave_request['days']
+        return jsonify({'success': True}), 200
+    else:
+        return jsonify({'error': '找不到請假記錄'}), 404
 
 @app.route('/logout')
 def logout():
@@ -188,7 +174,7 @@ def employee_leave_records():
         return redirect(url_for('login'))
     
     employee_requests = [req for req in leave_requests if req['employee'] != session['username']]
-    current_date = date.today()
+    current_date = date.today().strftime('%Y-%m-%d')  # 將日期轉換為字符串
     return render_template('employee_leave_records.html', leave_requests=employee_requests, current_date=current_date)
 
 if __name__ == '__main__':
