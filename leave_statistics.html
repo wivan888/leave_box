@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>請假統計</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --text-color: #212529;
+            --card-bg: #ffffff;
+            --input-bg: #ffffff;
+            --input-text: #495057;
+            --btn-primary: #007bff;
+            --btn-secondary: #6c757d;
+            --list-group-bg: #ffffff;
+            --list-group-color: #212529;
+        }
+
+        .dark-mode {
+            --bg-color: #343a40;
+            --text-color: #f8f9fa;
+            --card-bg: #495057;
+            --input-bg: #6c757d;
+            --input-text: #ffffff;
+            --btn-primary: #17a2b8;
+            --btn-secondary: #5a6268;
+            --list-group-bg: #495057;
+            --list-group-color: #f8f9fa;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .container {
+            max-width: 800px;
+            margin-top: 50px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .table {
+            color: var(--text-color);
+        }
+
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: rgba(0,0,0,.05);
+        }
+
+        .dark-mode .table-striped tbody tr:nth-of-type(odd) {
+            background-color: rgba(255,255,255,.05);
+        }
+
+        .card-body h2 {
+            color: var(--text-color);
+        }
+
+        /* 新增：確保表格內容與標題顏色一致 */
+        .table th,
+        .table td {
+            color: var(--text-color);
+        }
+    </style>
+</head>
+<body>
+    <button id="darkModeToggle" class="btn btn-sm btn-outline-secondary position-fixed top-0 end-0 m-3">
+        暗黑模式
+    </button>
+    <div class="container">
+        <h1 class="text-center mb-4">請假統計</h1>
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2>剩餘假期</h2>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>假期類型</th>
+                            <th>已使用天數</th>
+                            <th>剩餘天數</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for leave_type, usage in leave_usage.items() %}
+                        <tr>
+                            <td>{{ leave_type }}</td>
+                            <td>{{ usage.used }}</td>
+                            <td>{{ usage.remaining }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h2>請假歷史</h2>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>開始日期</th>
+                            <th>結束日期</th>
+                            <th>假期類型</th>
+                            <th>天數</th>
+                            <th>狀態</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for request in leave_requests %}
+                        <tr>
+                            <td>{{ request.start_date }}</td>
+                            <td>{{ request.end_date }}</td>
+                            <td>{{ request.leave_type }}</td>
+                            <td>{{ request.days }}</td>
+                            <td>{{ request.status }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="text-center mt-4">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary">返回儀表板</a>
+        </div>
+    </div>
+    <script>
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const body = document.body;
+
+        function setDarkMode(isDark) {
+            body.classList.toggle('dark-mode', isDark);
+            darkModeToggle.textContent = isDark ? '亮色模式' : '暗黑模式';
+            localStorage.setItem('darkMode', isDark);
+        }
+
+        darkModeToggle.addEventListener('click', function() {
+            setDarkMode(!body.classList.contains('dark-mode'));
+        });
+
+        // 檢查用戶之前的偏好設置
+        const savedDarkMode = localStorage.getItem('darkMode') === 'true';
+        setDarkMode(savedDarkMode);
+
+        // 檢查系統偏好
+        const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+        prefersDarkScheme.addEventListener('change', (e) => {
+            setDarkMode(e.matches);
+        });
+
+        // 如果沒有保存的偏好，則使用系統偏好
+        if (localStorage.getItem('darkMode') === null) {
+            setDarkMode(prefersDarkScheme.matches);
+        }
+    </script>
+</body>
+</html>
