@@ -140,7 +140,7 @@ def delete_leave(request_id):
         if leave_request['status'] == '已同意':
             users[username]['leave_days'][leave_request['leave_type']] += leave_request['days']
         return jsonify({'success': True}), 200
-    else:
+    else:   
         return jsonify({'error': '找不到請假記錄'}), 404
 
 @app.route('/logout')
